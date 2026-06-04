@@ -418,3 +418,26 @@ a:hover {
         display: none; /* Hide back link on desktop since sidebar is always visible */
     }
 }
+
+.github-float-link {
+    position: fixed;
+    bottom: 1.5rem;
+    right: 1.5rem;
+    z-index: 999;
+    width: 44px;
+    height: 44px;
+    background: var(--bg-surface);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.github-float-link:hover,
+.github-float-link:focus-visible {
+    color: var(--primary);
+    border-color: var(--primary);
+}
