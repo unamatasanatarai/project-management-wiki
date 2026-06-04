@@ -9,6 +9,8 @@
     };
 
     const app = document.getElementById("app");
+    const searchInput = document.getElementById("searchInput");
+    const clearSearchBtn = document.getElementById("clearSearch");
 
     async function initialize() {
         try {
@@ -37,158 +39,160 @@
                 ])
             );
 
-            app.addEventListener(
-                "click",
-                handleGlobalClick
-            );
+            // Setup placeholder text based on screen size
+            updatePlaceholder();
+            window.addEventListener("resize", updatePlaceholder);
 
-            window.addEventListener(
-                "hashchange",
-                renderRoute
-            );
+            // Bind global events
+            document.body.addEventListener("click", handleGlobalClick);
+            window.addEventListener("hashchange", renderRoute);
+            window.addEventListener("keydown", handleGlobalKeyDown);
+
+            // Bind search input events
+            searchInput.addEventListener("input", handleSearchInput);
+            clearSearchBtn.addEventListener("click", handleClearSearch);
 
             renderRoute();
 
         } catch (error) {
-
             console.error(error);
-
             renderError(
-                error.message ||
-                "Nie udało się załadować aplikacji."
+                error.message || "Nie udało się załadować aplikacji."
             );
+        }
+    }
+
+    function updatePlaceholder() {
+        const isMobile = window.matchMedia("(max-width: 767px)").matches;
+        searchInput.placeholder = isMobile ? "Szukaj pojęcia..." : "Szukaj pojęcia... (naciśnij /)";
+    }
+
+    function handleGlobalKeyDown(event) {
+        if (event.key === "/") {
+            const active = document.activeElement;
+            const isInput = active.tagName === "INPUT" || 
+                            active.tagName === "TEXTAREA" || 
+                            active.isContentEditable;
+            
+            // Disable shortcut on mobile viewports altogether
+            const isMobile = window.matchMedia("(max-width: 767px)").matches;
+            if (!isInput && !isMobile) {
+                event.preventDefault();
+                searchInput.focus();
+                searchInput.select();
+            }
+        }
+    }
+
+    function handleSearchInput(event) {
+        state.query = event.target.value;
+        updateClearButtonVisibility();
+        
+        if (location.hash !== "#/" && location.hash !== "") {
+            location.hash = "#/";
+        } else {
+            renderResults();
+        }
+    }
+
+    function handleClearSearch() {
+        state.query = "";
+        searchInput.value = "";
+        updateClearButtonVisibility();
+        searchInput.focus();
+        
+        if (location.hash !== "#/" && location.hash !== "") {
+            location.hash = "#/";
+        } else {
+            renderResults();
+        }
+    }
+
+    function updateClearButtonVisibility() {
+        if (state.query.trim().length > 0) {
+            clearSearchBtn.style.display = "flex";
+        } else {
+            clearSearchBtn.style.display = "none";
         }
     }
 
     function renderRoute() {
-
         const hash = location.hash || "#/";
 
-        if (hash.startsWith("#/term/")) {
+        // Keep search input value synced
+        if (searchInput.value !== state.query) {
+            searchInput.value = state.query;
+        }
 
+        updateClearButtonVisibility();
+        renderResults();
+
+        if (hash.startsWith("#/term/")) {
             const slug = decodeURIComponent(
                 hash.replace("#/term/", "")
             );
-
             renderTerm(slug);
-            return;
+        } else {
+            renderWelcome();
         }
-
-        renderDictionary();
-    }
-
-    function renderDictionary() {
-
-        if (state.currentView !== "dictionary") {
-
-            state.currentView = "dictionary";
-
-            app.innerHTML = `
-                <section class="search-section">
-                    <input
-                        id="searchInput"
-                        class="search-input"
-                        type="search"
-                        placeholder="Szukaj pojęcia..."
-                        autocomplete="off"
-                        spellcheck="false"
-                        aria-label="Szukaj pojęcia"
-                    >
-
-                    <div
-                        id="resultsMeta"
-                        class="results-meta"
-                    ></div>
-                </section>
-
-                <div
-                    id="resultsContainer"
-                    class="cards"
-                ></div>
-            `;
-
-            const searchInput =
-                document.getElementById(
-                    "searchInput"
-                );
-
-            searchInput.value =
-                state.query;
-
-            searchInput.addEventListener(
-                "input",
-                event => {
-
-                    state.query =
-                        event.target.value;
-
-                    renderResults();
-                }
-            );
-        }
-
-        renderResults();
     }
 
     function renderResults() {
+        const resultsContainer = document.getElementById("resultsContainer");
+        const resultsMeta = document.getElementById("resultsMeta");
 
-        const resultsContainer =
-            document.getElementById(
-                "resultsContainer"
-            );
-
-        const resultsMeta =
-            document.getElementById(
-                "resultsMeta"
-            );
-
-        if (
-            !resultsContainer ||
-            !resultsMeta
-        ) {
+        if (!resultsContainer || !resultsMeta) {
             return;
         }
 
-        const query =
-            state.query
-                .trim()
-                .toLowerCase();
+        const query = state.query.trim().toLowerCase();
 
-        const results =
-            state.terms.filter(term => {
+        const results = state.terms.filter(term => {
+            if (!query) {
+                return true;
+            }
+            return (
+                term.search &&
+                term.search.includes(query)
+            );
+        });
 
-                if (!query) {
-                    return true;
-                }
-
-                return (
-                    term.search &&
-                    term.search.includes(query)
-                );
-            });
-
-        resultsMeta.textContent =
-            `Znaleziono: ${results.length}`;
+        // Update search input badge count
+        resultsMeta.textContent = results.length;
 
         if (results.length === 0) {
-
             resultsContainer.innerHTML = `
                 <div class="empty">
                     Nie znaleziono żadnych wyników.
                 </div>
             `;
-
             return;
         }
 
-        resultsContainer.innerHTML =
-            results
-                .map(renderCard)
-                .join("");
+        resultsContainer.innerHTML = results
+            .map(renderCard)
+            .join("");
+
+        highlightActiveCard();
+    }
+
+    function highlightActiveCard() {
+        const hash = location.hash || "#/";
+        let activeSlug = "";
+        if (hash.startsWith("#/term/")) {
+            activeSlug = decodeURIComponent(hash.replace("#/term/", ""));
+        }
+
+        document.querySelectorAll(".card").forEach(card => {
+            if (card.dataset.slug === activeSlug) {
+                card.classList.add("active");
+            } else {
+                card.classList.remove("active");
+            }
+        });
     }
 
     function renderCard(term) {
-
         return `
             <article
                 class="card"
@@ -197,178 +201,158 @@
                 role="button"
                 aria-label="Otwórz ${escapeHtml(term.title)}"
             >
-
                 <h2 class="card-title">
                     ${escapeHtml(term.title)}
                 </h2>
-
                 <p class="card-description">
-                    ${escapeHtml(
-                        term.description || ""
-                    )}
+                    ${escapeHtml(term.description || "")}
                 </p>
-
                 <div class="badge">
-                    ${escapeHtml(
-                        term.category || ""
-                    )}
+                    ${escapeHtml(term.category || "")}
                 </div>
-
             </article>
         `;
     }
 
+    function renderWelcome() {
+        state.currentView = "dictionary";
+        document.body.setAttribute("data-view", "dictionary");
+
+        app.innerHTML = `
+            <div class="empty-state-welcome">
+                <h2>Słownik Project Management</h2>
+                <p>Wyszukaj pojęcie lub wybierz je z listy, aby zobaczyć szczegóły.</p>
+            </div>
+        `;
+
+        updateSEO();
+    }
+
     function renderTerm(slug) {
-
         state.currentView = "term";
+        document.body.setAttribute("data-view", "term");
 
-        const term =
-            state.termsBySlug[slug];
+        const term = state.termsBySlug[slug];
 
         if (!term) {
-
             renderNotFound();
             return;
         }
 
-        const relatedSection =
-            term.related &&
-            term.related.length
-                ? `
-                <section class="related-section">
-
-                    <h2>
-                        Powiązane pojęcia
-                    </h2>
-
-                    <div class="related-list">
-
-                        ${term.related
-                            .map(item => `
-                                <a
-                                    class="related-link"
-                                    href="#/term/${item.slug}"
-                                >
-                                    ${escapeHtml(item.title)}
-                                </a>
-                            `)
-                            .join("")}
-
-                    </div>
-
-                </section>
-                `
-                : "";
+        const relatedSection = term.related && term.related.length
+            ? `
+            <section class="related-section">
+                <h2>Powiązane pojęcia</h2>
+                <div class="related-list">
+                    ${term.related
+                        .map(item => `
+                            <a
+                                class="related-link"
+                                href="#/term/${item.slug}"
+                            >
+                                ${escapeHtml(item.title)}
+                            </a>
+                        `)
+                        .join("")}
+                </div>
+            </section>
+            `
+            : "";
 
         app.innerHTML = `
             <article class="article">
-
-                <a
-                    href="#/"
-                    class="back-link"
-                >
+                <a href="#/" class="back-link">
                     ← Powrót do słownika
                 </a>
 
                 <header class="article-header">
-
                     <h1>
                         ${escapeHtml(term.title)}
                     </h1>
-
                     <div class="badge">
-                        ${escapeHtml(
-                            term.category || ""
-                        )}
+                        ${escapeHtml(term.category || "")}
                     </div>
-
                 </header>
 
-                <section
-                    class="article-content"
-                >
+                <section class="article-content">
                     ${term.content || ""}
                 </section>
 
                 ${relatedSection}
-
             </article>
         `;
+
+        highlightActiveCard();
+        updateSEO(term.title, term.description);
     }
 
     function renderError(message) {
-
         state.currentView = "error";
+        document.body.setAttribute("data-view", "error");
 
         app.innerHTML = `
             <div class="error">
-
-                <h2>
-                    Błąd
-                </h2>
-
-                <p>
-                    ${escapeHtml(message)}
-                </p>
-
+                <h2>Błąd</h2>
+                <p>${escapeHtml(message)}</p>
             </div>
         `;
+
+        updateSEO("Błąd");
     }
 
     function renderNotFound() {
-
         state.currentView = "notfound";
+        document.body.setAttribute("data-view", "notfound");
 
         app.innerHTML = `
             <div class="error">
-
-                <h2>
-                    Nie znaleziono wpisu
-                </h2>
-
-                <p>
-                    Podane pojęcie nie istnieje.
-                </p>
-
-                <a href="#/">
-                    Wróć do słownika
-                </a>
-
+                <h2>Nie znaleziono wpisu</h2>
+                <p>Podane pojęcie nie istnieje.</p>
+                <a href="#/">Wróć do słownika</a>
             </div>
         `;
+
+        updateSEO("Nie znaleziono wpisu");
     }
 
     function handleGlobalClick(event) {
-
-        const card =
-            event.target.closest(".card");
-
+        const card = event.target.closest(".card");
         if (!card) {
             return;
         }
 
-        const slug =
-            card.dataset.slug;
-
+        const slug = card.dataset.slug;
         if (!slug) {
             return;
         }
 
-        location.hash =
-            `#/term/${slug}`;
+        location.hash = `#/term/${slug}`;
+    }
+
+    function updateSEO(title, description) {
+        const pageTitle = title ? `${title} - Project Management - Ściąga` : "Project Management - Ściąga";
+        const pageDesc = description || "Interaktywny słownik pojęć i narzędzi z zakresu Project Management. Definicje, przykłady i powiązania w jednym miejscu.";
+
+        document.title = pageTitle;
+
+        const setMeta = (selector, attr, value) => {
+            const el = document.querySelector(selector);
+            if (el) el.setAttribute(attr, value);
+        };
+
+        setMeta('meta[name="description"]', 'content', pageDesc);
+        setMeta('meta[property="og:title"]', 'content', pageTitle);
+        setMeta('meta[property="og:description"]', 'content', pageDesc);
+        setMeta('meta[property="og:url"]', 'content', window.location.href);
+        setMeta('meta[name="twitter:title"]', 'content', pageTitle);
+        setMeta('meta[name="twitter:description"]', 'content', pageDesc);
     }
 
     function escapeHtml(value) {
-
-        const div =
-            document.createElement("div");
-
-        div.textContent =
-            value ?? "";
-
+        const div = document.createElement("div");
+        div.textContent = value ?? "";
         return div.innerHTML;
     }
 
     initialize();
-
 })();
