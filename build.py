@@ -14,6 +14,12 @@ import markdown
 CONTENT_DIR = Path("../project-management-wiki.wiki")
 OUTPUT_FILE = Path("data/terms.json")
 
+MARKDOWN_EXTENSIONS = (
+    "tables",
+    "fenced_code",
+    "sane_lists",
+)
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(levelname)s: %(message)s",
@@ -80,7 +86,7 @@ DEFINITION_HEADING_RE = re.compile(
     re.MULTILINE,
 )
 
-#--------------------------------------------------
+# --------------------------------------------------
 # Models
 # --------------------------------------------------
 
@@ -111,9 +117,7 @@ class Term:
 
 
 def slugify(text: str) -> str:
-    """
-    Convert text into URL-friendly slug.
-    """
+    """Convert text into a URL-friendly slug."""
     text = text.translate(POLISH_CHARS)
     text = text.lower().strip()
 
@@ -124,9 +128,7 @@ def slugify(text: str) -> str:
 
 
 def normalize_search(text: str) -> str:
-    """
-    Normalize searchable text.
-    """
+    """Normalize searchable text."""
     text = text.translate(POLISH_CHARS)
     text = text.lower()
 
@@ -152,10 +154,7 @@ def extract_category(md: str) -> str:
 
 
 def extract_definition(md: str) -> str:
-    """
-    Return the first non-empty paragraph
-    from the 'Definicja' section.
-    """
+    """Return the first non-empty paragraph from the Definicja section."""
     match = DEFINITION_RE.search(md)
 
     if not match:
@@ -186,14 +185,12 @@ def extract_related(md: str) -> list[RelatedTerm]:
 
     block = match.group(1)
 
-    links = LINK_RE.findall(block)
-
     return [
         RelatedTerm(
             title=title.strip(),
             slug=slugify(Path(target).stem),
         )
-        for title, target in links
+        for title, target in LINK_RE.findall(block)
     ]
 
 
@@ -204,7 +201,7 @@ def extract_related(md: str) -> list[RelatedTerm]:
 
 def rewrite_wiki_links(md: str) -> str:
     """
-    Convert:
+    Convert wiki links:
 
         [ADKAR](ADKAR)
 
@@ -230,7 +227,7 @@ def rewrite_wiki_links(md: str) -> str:
 def trim_to_definition(md: str) -> str:
     """
     Remove everything before the first
-    '## Definicja' heading.
+    relevant content section.
     """
     match = DEFINITION_HEADING_RE.search(md)
 
@@ -246,16 +243,12 @@ def trim_to_definition(md: str) -> str:
 
 
 def read_markdown(path: Path) -> str:
-    """
-    Read a markdown file safely.
-    """
+    """Read a markdown file."""
     return path.read_text(encoding="utf-8")
 
 
 def write_json_atomic(path: Path, payload: dict[str, Any]) -> None:
-    """
-    Write JSON atomically.
-    """
+    """Write JSON atomically."""
     path.parent.mkdir(parents=True, exist_ok=True)
 
     temp_path = path.with_suffix(".tmp")
@@ -295,29 +288,23 @@ def build_term(path: Path) -> Term | None:
         description = extract_definition(original_md)
         related = extract_related(original_md)
 
-        md = trim_to_definition(original_md)
-        md = rewrite_wiki_links(md)
+        md = rewrite_wiki_links(
+            trim_to_definition(original_md)
+        )
 
         html = markdown.markdown(
             md,
-            extensions=[
-                "tables",
-                "fenced_code",
-                "sane_lists",
-            ],
+            extensions=MARKDOWN_EXTENSIONS,
         )
 
         search_text = normalize_search(
             " ".join(
-                [
+                (
                     title,
                     category,
                     description,
-                    *(
-                        rel.title
-                        for rel in related
-                    ),
-                ]
+                    *(rel.title for rel in related),
+                )
             )
         )
 
@@ -331,11 +318,10 @@ def build_term(path: Path) -> Term | None:
             search=search_text,
         )
 
-    except Exception as exc:
+    except Exception:
         logger.exception(
-            "Failed processing %s: %s",
+            "Failed processing %s",
             path.name,
-            exc,
         )
         return None
 
@@ -345,13 +331,16 @@ def build_term(path: Path) -> Term | None:
 # --------------------------------------------------
 
 
-def build() -> None:
-    if not CONTENT_DIR.exists():
+def build(
+    content_dir: Path = CONTENT_DIR,
+    output_file: Path = OUTPUT_FILE,
+) -> None:
+    if not content_dir.exists():
         raise FileNotFoundError(
-            f"Content directory not found: {CONTENT_DIR}"
+            f"Content directory not found: {content_dir}"
         )
 
-    files = sorted(CONTENT_DIR.glob("*.md"))
+    files = sorted(content_dir.glob("*.md"))
 
     logger.info(
         "Found %d markdown files",
@@ -361,12 +350,29 @@ def build() -> None:
     terms: list[Term] = []
 
     for file in files:
-        logger.info("Processing %s", file.name)
+        logger.info(
+            "Processing %s",
+            file.name,
+        )
 
         term = build_term(file)
 
         if term is not None:
             terms.append(term)
+
+    slugs = [term.slug for term in terms]
+
+    duplicate_slugs = {
+        slug
+        for slug in slugs
+        if slugs.count(slug) > 1
+    }
+
+    if duplicate_slugs:
+        raise ValueError(
+            "Duplicate generated slugs detected: "
+            + ", ".join(sorted(duplicate_slugs))
+        )
 
     payload = {
         "version": 1,
@@ -378,13 +384,13 @@ def build() -> None:
     }
 
     write_json_atomic(
-        OUTPUT_FILE,
+        output_file,
         payload,
     )
 
     logger.info(
         "Generated %s with %d terms",
-        OUTPUT_FILE,
+        output_file,
         len(terms),
     )
 
