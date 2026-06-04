@@ -36,22 +36,22 @@ It provides project managers, engineers, and product owners with lightning-fast 
 
 ```mermaid
 graph TD
-    subgraph Content Source
+    subgraph ContentSource ["Content Source"]
         RawMD[GitHub Wiki .md Files]
     end
 
-    subgraph Build Pipeline (Python)
+    subgraph BuildPipeline ["Build Pipeline (Python)"]
         BP[build.py Script]
         MDParser[Markdown Parser]
         SlugGen[Slugify & Character Normalizer]
         JSONGen[JSON Database Generator]
     end
 
-    subgraph Static Database
+    subgraph StaticDatabase ["Static Database"]
         DataJSON[data/terms.json]
     end
 
-    subgraph Client Application (Web App)
+    subgraph ClientApp ["Client Application (Web App)"]
         Index[index.html]
         CSS[styles.css]
         AppJS[app.js Routing & State]
