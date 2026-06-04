@@ -191,7 +191,7 @@ def extract_related(md: str) -> list[RelatedTerm]:
     return [
         RelatedTerm(
             title=title.strip(),
-            slug=slugify(target),
+            slug=slugify(Path(target).stem),
         )
         for title, target in links
     ]
@@ -220,7 +220,7 @@ def rewrite_wiki_links(md: str) -> str:
         if target.startswith(("http://", "https://", "#/term/")):
             return match.group(0)
 
-        slug = slugify(target)
+        slug = slugify(Path(target).stem)
 
         return f"[{label}](#/term/{slug})"
 
@@ -289,7 +289,7 @@ def build_term(path: Path) -> Term | None:
             )
             return None
 
-        slug = slugify(title)
+        slug = slugify(path.stem)
 
         category = extract_category(original_md)
         description = extract_definition(original_md)
