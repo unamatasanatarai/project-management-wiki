@@ -284,6 +284,7 @@
 
         highlightActiveCard();
         updateSEO(term.title, term.description);
+        renderMath(app);
     }
 
     function renderError(message) {
@@ -346,6 +347,21 @@
         setMeta('meta[property="og:url"]', 'content', window.location.href);
         setMeta('meta[name="twitter:title"]', 'content', pageTitle);
         setMeta('meta[name="twitter:description"]', 'content', pageDesc);
+    }
+
+    function renderMath(container) {
+        if (typeof renderMathInElement === "function") {
+            renderMathInElement(container, {
+                delimiters: [
+                    { left: "$$",  right: "$$",  display: true  },
+                    { left: "$",   right: "$",   display: false }
+                ],
+                throwOnError: false
+            });
+        } else {
+            // KaTeX not yet loaded – wait and retry once
+            window.addEventListener("load", () => renderMath(container), { once: true });
+        }
     }
 
     function escapeHtml(value) {
