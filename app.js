@@ -51,6 +51,7 @@
             // Bind search input events
             searchInput.addEventListener("input", handleSearchInput);
             clearSearchBtn.addEventListener("click", handleClearSearch);
+            searchInput.addEventListener("keydown", handleSearchKeyDown);
 
             renderRoute();
 
@@ -84,15 +85,33 @@
         }
     }
 
+    function handleSearchKeyDown(event) {
+        if (event.key !== "Enter") {
+            return;
+        }
+
+        event.preventDefault();
+
+        const firstCard = document.querySelector(
+            "#resultsContainer .card"
+        );
+
+        if (!firstCard) {
+            return;
+        }
+
+        const slug = firstCard.dataset.slug;
+
+        if (slug) {
+            location.hash = `#/term/${slug}`;
+        }
+    }
+
     function handleSearchInput(event) {
         state.query = event.target.value;
         updateClearButtonVisibility();
 
-        if (location.hash !== "#/" && location.hash !== "") {
-            location.hash = "#/";
-        } else {
-            renderResults();
-        }
+        renderResults();
     }
 
     function handleClearSearch() {
@@ -101,11 +120,7 @@
         updateClearButtonVisibility();
         searchInput.focus();
 
-        if (location.hash !== "#/" && location.hash !== "") {
-            location.hash = "#/";
-        } else {
-            renderResults();
-        }
+        renderResults();
     }
 
     function updateClearButtonVisibility() {
@@ -132,6 +147,10 @@
                 hash.replace("#/term/", "")
             );
             renderTerm(slug);
+            app.scrollTo({
+                top: 0,
+                behavior: "smooth"
+            });
         } else {
             renderWelcome();
         }
