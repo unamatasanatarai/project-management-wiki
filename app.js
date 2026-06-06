@@ -70,10 +70,10 @@
     function handleGlobalKeyDown(event) {
         if (event.key === "/") {
             const active = document.activeElement;
-            const isInput = active.tagName === "INPUT" || 
-                            active.tagName === "TEXTAREA" || 
-                            active.isContentEditable;
-            
+            const isInput = active.tagName === "INPUT" ||
+                active.tagName === "TEXTAREA" ||
+                active.isContentEditable;
+
             // Disable shortcut on mobile viewports altogether
             const isMobile = window.matchMedia("(max-width: 767px)").matches;
             if (!isInput && !isMobile) {
@@ -87,7 +87,7 @@
     function handleSearchInput(event) {
         state.query = event.target.value;
         updateClearButtonVisibility();
-        
+
         if (location.hash !== "#/" && location.hash !== "") {
             location.hash = "#/";
         } else {
@@ -100,7 +100,7 @@
         searchInput.value = "";
         updateClearButtonVisibility();
         searchInput.focus();
-        
+
         if (location.hash !== "#/" && location.hash !== "") {
             location.hash = "#/";
         } else {
@@ -137,6 +137,90 @@
         }
     }
 
+    function normalizeText(text) {
+        return (text || "")
+            .toLowerCase()
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "");
+    }
+
+    function getSearchScore(term, query) {
+        if (!query) return 1;
+
+        const q = normalizeText(query);
+
+        const title = normalizeText(term.title);
+        const category = normalizeText(term.category);
+        const description = normalizeText(term.description);
+        const search = normalizeText(term.search);
+
+        let score = 0;
+
+        // Exact title match
+        if (title === q) {
+            score += 10000;
+        }
+
+        // Title starts with query
+        else if (title.startsWith(q)) {
+            score += 5000;
+        }
+
+        // Title contains query
+        else if (title.includes(q)) {
+            score += 3000;
+        }
+
+        // Multi-word relevance
+        const words = q.split(/\s+/).filter(Boolean);
+
+        for (const word of words) {
+            if (title.includes(word)) {
+                score += 500;
+            }
+
+            if (category.includes(word)) {
+                score += 100;
+            }
+
+            if (description.includes(word)) {
+                score += 50;
+            }
+
+            if (search.includes(word)) {
+                score += 10;
+            }
+        }
+
+        // Related terms
+        if (
+            term.related?.some(
+                item =>
+                    normalizeText(item.title).includes(q) ||
+                    normalizeText(item.slug).includes(q)
+            )
+        ) {
+            score += 250;
+        }
+
+        // Category direct match
+        if (category.includes(q)) {
+            score += 200;
+        }
+
+        // Description direct match
+        if (description.includes(q)) {
+            score += 100;
+        }
+
+        // Search index fallback
+        if (search.includes(q)) {
+            score += 25;
+        }
+
+        return score;
+    }
+
     function renderResults() {
         const resultsContainer = document.getElementById("resultsContainer");
         const resultsMeta = document.getElementById("resultsMeta");
@@ -145,27 +229,40 @@
             return;
         }
 
-        const query = state.query.trim().toLowerCase();
+        const query = state.query.trim();
 
-        const results = state.terms.filter(term => {
-            if (!query) {
-                return true;
-            }
-            return (
-                term.search &&
-                term.search.includes(query)
-            );
-        });
+        let results;
 
-        // Update search input badge count
+        if (!query) {
+            results = [...state.terms];
+        } else {
+            results = state.terms
+                .map(term => ({
+                    term,
+                    score: getSearchScore(term, query)
+                }))
+                .filter(item => item.score > 0)
+                .sort((a, b) => {
+                    if (b.score !== a.score) {
+                        return b.score - a.score;
+                    }
+
+                    return a.term.title.localeCompare(
+                        b.term.title,
+                        "pl"
+                    );
+                })
+                .map(item => item.term);
+        }
+
         resultsMeta.textContent = results.length;
 
         if (results.length === 0) {
             resultsContainer.innerHTML = `
-                <div class="empty">
-                    Nie znaleziono żadnych wyników.
-                </div>
-            `;
+            <div class="empty">
+                Nie znaleziono żadnych wyników.
+            </div>
+        `;
             return;
         }
 
@@ -245,7 +342,7 @@
                 <h2>Powiązane pojęcia</h2>
                 <div class="related-list">
                     ${term.related
-                        .map(item => `
+                .map(item => `
                             <a
                                 class="related-link"
                                 href="#/term/${item.slug}"
@@ -253,7 +350,7 @@
                                 ${escapeHtml(item.title)}
                             </a>
                         `)
-                        .join("")}
+                .join("")}
                 </div>
             </section>
             `
@@ -353,8 +450,8 @@
         if (typeof renderMathInElement === "function") {
             renderMathInElement(container, {
                 delimiters: [
-                    { left: "$$",  right: "$$",  display: true  },
-                    { left: "$",   right: "$",   display: false }
+                    { left: "$$", right: "$$", display: true },
+                    { left: "$", right: "$", display: false }
                 ],
                 throwOnError: false
             });
