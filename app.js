@@ -5,7 +5,9 @@
         terms: [],
         termsBySlug: {},
         query: "",
-        currentView: null
+        currentView: null,
+        shuffledTerms: [],
+        currentRandomIndex: 0
     };
 
     const app = document.getElementById("app");
@@ -39,6 +41,8 @@
                     term
                 ])
             );
+
+            state.shuffledTerms = shuffleArray(state.terms);
 
             // Setup placeholder text based on screen size
             updatePlaceholder();
@@ -117,12 +121,17 @@
     }
 
     function handleRandomClick() {
-        if (!state.terms || state.terms.length === 0) {
+        if (!state.shuffledTerms || state.shuffledTerms.length === 0) {
             return;
         }
 
-        const randomIndex = Math.floor(Math.random() * state.terms.length);
-        const randomTerm = state.terms[randomIndex];
+        const randomTerm = state.shuffledTerms[state.currentRandomIndex];
+        state.currentRandomIndex++;
+
+        if (state.currentRandomIndex >= state.shuffledTerms.length) {
+            state.shuffledTerms = shuffleArray(state.terms);
+            state.currentRandomIndex = 0;
+        }
 
         if (randomTerm && randomTerm.slug) {
             location.hash = `#/term/${randomTerm.slug}`;
@@ -169,6 +178,15 @@
         } else {
             renderWelcome();
         }
+    }
+
+    function shuffleArray(array) {
+        const arr = [...array];
+        for (let i = arr.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [arr[i], arr[j]] = [arr[j], arr[i]];
+        }
+        return arr;
     }
 
     function normalizeText(text) {
