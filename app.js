@@ -46,12 +46,19 @@
 
             // Setup placeholder text based on screen size
             updatePlaceholder();
-            window.addEventListener("resize", updatePlaceholder);
+            window.addEventListener("resize", () => {
+                updatePlaceholder();
+                handleStickyHeader();
+            });
 
             // Bind global events
             document.body.addEventListener("click", handleGlobalClick);
             window.addEventListener("hashchange", renderRoute);
             window.addEventListener("keydown", handleGlobalKeyDown);
+
+            // Sticky header scroll listeners
+            app.addEventListener("scroll", handleStickyHeader, { passive: true });
+            window.addEventListener("scroll", handleStickyHeader, { passive: true });
 
             // Bind search input events
             searchInput.addEventListener("input", handleSearchInput);
@@ -72,6 +79,35 @@
     function updatePlaceholder() {
         const isMobile = window.matchMedia("(max-width: 767px)").matches;
         searchInput.placeholder = isMobile ? "Szukaj pojęcia..." : "Szukaj pojęcia... (naciśnij /)";
+    }
+
+    function handleStickyHeader() {
+        if (state.currentView !== "term") return;
+
+        const header = document.querySelector(".article-header");
+        if (!header) return;
+        
+        const rect = header.getBoundingClientRect();
+        let isStuck = false;
+        
+        if (window.matchMedia("(min-width: 768px)").matches) {
+            const appRect = app.getBoundingClientRect();
+            if (rect.top <= appRect.top + 1) {
+                isStuck = true;
+            }
+        } else {
+            const appHeader = document.querySelector(".app-header");
+            const offset = appHeader ? appHeader.getBoundingClientRect().height : 72;
+            if (rect.top <= offset + 1) {
+                isStuck = true;
+            }
+        }
+        
+        if (isStuck) {
+            header.classList.add("is-stuck");
+        } else {
+            header.classList.remove("is-stuck");
+        }
     }
 
     function handleGlobalKeyDown(event) {
@@ -172,6 +208,10 @@
             );
             renderTerm(slug);
             app.scrollTo({
+                top: 0,
+                behavior: "smooth"
+            });
+            window.scrollTo({
                 top: 0,
                 behavior: "smooth"
             });
@@ -434,6 +474,11 @@
         highlightActiveCard();
         updateSEO(term.title, term.description);
         renderMath(app);
+        
+        // Ensure sticky state is correct after rendering
+        requestAnimationFrame(() => {
+            handleStickyHeader();
+        });
     }
 
     function renderError(message) {
