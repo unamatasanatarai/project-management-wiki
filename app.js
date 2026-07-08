@@ -11,6 +11,7 @@
     const app = document.getElementById("app");
     const searchInput = document.getElementById("searchInput");
     const clearSearchBtn = document.getElementById("clearSearch");
+    const randomBtn = document.getElementById("randomBtn");
 
     async function initialize() {
         try {
@@ -52,6 +53,7 @@
             searchInput.addEventListener("input", handleSearchInput);
             clearSearchBtn.addEventListener("click", handleClearSearch);
             searchInput.addEventListener("keydown", handleSearchKeyDown);
+            randomBtn.addEventListener("click", handleRandomClick);
 
             renderRoute();
 
@@ -112,6 +114,19 @@
         updateClearButtonVisibility();
 
         renderResults();
+    }
+
+    function handleRandomClick() {
+        if (!state.terms || state.terms.length === 0) {
+            return;
+        }
+
+        const randomIndex = Math.floor(Math.random() * state.terms.length);
+        const randomTerm = state.terms[randomIndex];
+
+        if (randomTerm && randomTerm.slug) {
+            location.hash = `#/term/${randomTerm.slug}`;
+        }
     }
 
     function handleClearSearch() {
