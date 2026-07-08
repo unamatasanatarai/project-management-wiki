@@ -35,6 +35,15 @@
             <div class="search-wrapper">
                 <input id="searchInput" class="search-input" type="search" placeholder="Szukaj pojęcia..." autofocus autocomplete="off" spellcheck="false" aria-label="Szukaj pojęcia">
                 <div class="search-actions">
+                    <button id="randomBtn" class="icon-btn" type="button" aria-label="Losowe pojęcie" title="Losowe pojęcie">
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="16 3 21 3 21 8"></polyline>
+                            <line x1="4" y1="20" x2="21" y2="3"></line>
+                            <polyline points="21 16 21 21 16 21"></polyline>
+                            <line x1="15" y1="15" x2="21" y2="21"></line>
+                            <line x1="4" y1="4" x2="9" y2="9"></line>
+                        </svg>
+                    </button>
                     <span id="resultsMeta" class="results-meta-badge">--</span>
                     <button id="clearSearch" class="clear-search-btn" type="button" aria-label="Wyczyść wyszukiwanie">&times;</button>
                 </div>
