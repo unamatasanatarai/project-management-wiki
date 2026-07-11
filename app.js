@@ -66,6 +66,11 @@
             searchInput.addEventListener("keydown", handleSearchKeyDown);
             randomBtn.addEventListener("click", handleRandomClick);
 
+            // Set default page to "Ścieżki nauki" if opened without a permalink
+            if (!location.hash || location.hash === "#" || location.hash === "#/") {
+                history.replaceState(null, "", "#/term/sciezki-nauki");
+            }
+
             renderRoute();
 
         } catch (error) {
