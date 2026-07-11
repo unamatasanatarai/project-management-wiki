@@ -384,7 +384,7 @@ def build(
 
     files = sorted(
         path for path in content_dir.glob("*.md")
-        if not path.name.startswith("_")
+        if not path.name.startswith("_") and path.name != "AGENTS.md"
     )
 
     logger.info(
