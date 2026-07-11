@@ -401,9 +401,7 @@
                 <p class="card-description">
                     ${escapeHtml(term.description || "")}
                 </p>
-                <div class="badge">
-                    ${escapeHtml(term.category || "")}
-                </div>
+                ${term.category ? `<div class="badge">${escapeHtml(term.category)}</div>` : ""}
             </article>
         `;
     }
@@ -463,9 +461,7 @@
                     <h1>
                         ${escapeHtml(term.title)}
                     </h1>
-                    <div class="badge">
-                        ${escapeHtml(term.category || "")}
-                    </div>
+                    ${term.category ? `<div class="badge">${escapeHtml(term.category)}</div>` : ""}
                 </header>
 
                 <section class="article-content">
@@ -516,17 +512,32 @@
     }
 
     function handleGlobalClick(event) {
+        // Handle wiki card clicks
         const card = event.target.closest(".card");
-        if (!card) {
+        if (card) {
+            const slug = card.dataset.slug;
+            if (slug) {
+                location.hash = `#/term/${slug}`;
+            }
             return;
         }
 
-        const slug = card.dataset.slug;
-        if (!slug) {
-            return;
+        // Handle local anchor link clicks (e.g. #ścieżki-tematyczne)
+        const anchor = event.target.closest("a");
+        if (anchor) {
+            const href = anchor.getAttribute("href");
+            if (href && href.startsWith("#") && !href.startsWith("#/")) {
+                event.preventDefault();
+                const id = decodeURIComponent(href.slice(1));
+                const normalizedId = normalizeText(id);
+                const targetEl = document.getElementById(normalizedId) || 
+                                 document.getElementById(id) || 
+                                 document.getElementsByName(id)[0];
+                if (targetEl) {
+                    targetEl.scrollIntoView({ behavior: "smooth" });
+                }
+            }
         }
-
-        location.hash = `#/term/${slug}`;
     }
 
     function updateSEO(title, description) {

@@ -18,6 +18,7 @@ MARKDOWN_EXTENSIONS = (
     "tables",
     "fenced_code",
     "sane_lists",
+    "toc",
 )
 
 logging.basicConfig(
@@ -214,7 +215,11 @@ def rewrite_wiki_links(md: str) -> str:
         label = match.group(1)
         target = match.group(2).strip()
 
-        if target.startswith(("http://", "https://", "#/term/")):
+        if target.startswith(("http://", "https://", "#/term/", "#")):
+            return match.group(0)
+
+        # Do not rewrite links to assets (images, PDFs, archives, data files)
+        if target.lower().endswith((".png", ".jpg", ".jpeg", ".gif", ".svg", ".webp", ".pdf", ".zip", ".tar.gz", ".txt", ".csv")):
             return match.group(0)
 
         slug = slugify(Path(target).stem)
@@ -231,10 +236,31 @@ def trim_to_definition(md: str) -> str:
     """
     match = DEFINITION_HEADING_RE.search(md)
 
-    if not match:
-        return md
+    if match:
+        return md[match.start():]
 
-    return md[match.start():]
+    # For pages without a definition section (e.g., Sciezki-nauki.md, Slownik.md),
+    # strip the main title heading (# Title) and any leading navigation links.
+    lines = md.splitlines()
+    content_start_idx = 0
+
+    # Skip the main title heading if it exists
+    if lines and lines[0].startswith("# "):
+        content_start_idx = 1
+
+    # Skip any leading empty lines or navigation lines
+    while content_start_idx < len(lines):
+        line = lines[content_start_idx].strip()
+        if not line:
+            content_start_idx += 1
+            continue
+        # Skip navigation links containing Home, Slownik, or Sciezki-nauki in brackets
+        if ("Home" in line or "Slownik" in line or "Sciezki-nauki" in line) and ("[" in line and "]" in line):
+            content_start_idx += 1
+            continue
+        break
+
+    return "\n".join(lines[content_start_idx:])
 
 
 # --------------------------------------------------
@@ -276,11 +302,14 @@ def build_term(path: Path) -> Term | None:
         title = extract_title(original_md)
 
         if not title:
-            logger.warning(
-                "Skipping %s (missing title)",
-                path.name,
-            )
-            return None
+            if path.stem == "Home":
+                title = "Strona główna"
+            else:
+                logger.warning(
+                    "Skipping %s (missing title)",
+                    path.name,
+                )
+                return None
 
         slug = slugify(path.stem)
 
@@ -326,6 +355,16 @@ def build_term(path: Path) -> Term | None:
         return None
 
 
+def copy_assets(content_dir: Path, target_dir: Path) -> None:
+    """Copy non-markdown asset files (e.g. images) to target directory."""
+    asset_extensions = {".png", ".jpg", ".jpeg", ".gif", ".svg", ".webp", ".pdf", ".zip", ".tar.gz", ".txt", ".csv"}
+    for path in content_dir.iterdir():
+        if path.is_file() and path.suffix.lower() in asset_extensions:
+            dest = target_dir / path.name
+            logger.info("Copying asset %s to %s", path.name, dest)
+            dest.write_bytes(path.read_bytes())
+
+
 # --------------------------------------------------
 # Main build
 # --------------------------------------------------
@@ -340,7 +379,13 @@ def build(
             f"Content directory not found: {content_dir}"
         )
 
-    files = sorted(content_dir.glob("*.md"))
+    # Copy asset files (images, etc.) to project root
+    copy_assets(content_dir, Path("."))
+
+    files = sorted(
+        path for path in content_dir.glob("*.md")
+        if not path.name.startswith("_")
+    )
 
     logger.info(
         "Found %d markdown files",
