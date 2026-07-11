@@ -379,40 +379,7 @@ a:hover {
     margin-bottom: 0.5rem;
 }
 
-/* Related section */
-.related-section {
-    margin-top: 3rem;
-    padding-top: 2rem;
-    border-top: 1px solid var(--border-color);
-}
 
-.related-section h2 {
-    font-size: 1.25rem;
-    margin-top: 0;
-    margin-bottom: 1rem;
-    font-weight: 600;
-}
-
-.related-list {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-}
-
-.related-link {
-    padding: 0.5rem 1rem;
-    background: var(--bg-app);
-    border: 1px solid var(--border-color);
-    color: var(--text-secondary);
-    border-radius: var(--radius-md);
-    font-size: 0.9rem;
-    font-weight: 500;
-}
-
-.related-link:hover {
-    border-color: var(--primary);
-    color: var(--primary);
-}
 
 /* Utilities / Message states */
 .loading,

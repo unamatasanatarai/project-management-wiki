@@ -431,26 +431,6 @@
             return;
         }
 
-        const relatedSection = term.related && term.related.length
-            ? `
-            <section class="related-section">
-                <h2>Powiązane pojęcia</h2>
-                <div class="related-list">
-                    ${term.related
-                .map(item => `
-                            <a
-                                class="related-link"
-                                href="#/term/${item.slug}"
-                            >
-                                ${escapeHtml(item.title)}
-                            </a>
-                        `)
-                .join("")}
-                </div>
-            </section>
-            `
-            : "";
-
         app.innerHTML = `
             <article class="article">
                 <a href="#/" class="back-link">
@@ -467,8 +447,6 @@
                 <section class="article-content">
                     ${term.content || ""}
                 </section>
-
-                ${relatedSection}
             </article>
         `;
 
